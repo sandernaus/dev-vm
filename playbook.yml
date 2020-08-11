@@ -1,0 +1,199 @@
+---
+
+- name: generate SSH Key
+  hosts:
+  - all
+  tasks:
+    - name: Verify if .secret.yml exists
+      stat:
+        path: /vagrant/.secret.yml
+      register: secret
+
+    - name: Include custom specific vars
+      include_vars: /vagrant/.secret.yml
+      when: secret.stat.exists is defined and secret.stat.exists
+
+    - name: Install packages
+      yum:
+        name:
+          - python3
+          - python3-pip
+          - git
+          - tree
+          - docker
+          - epel-release
+          - wget
+          - unzip
+          - qemu
+          - kvm
+          - qemu-kvm
+          - seabios
+          - telnet
+          - tigervnc
+          - xauth
+          - maven
+          - rpm-build
+          - htop
+        state: present
+      become: true
+
+    - name: Configure SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regex: ^(# *)?{{ item }}"
+        line: "{{ item.setting }} {{ item.value }}"
+      notify: restart_ssh
+      become: true
+      with_items:
+        - setting: X11Forwarding
+          value: "yes"
+        - setting: X11UseLocalhost
+          value: "no"
+        - setting: PasswordAuthentication
+          value: "yes"
+
+    - name: Download packer zip
+      get_url:
+        url: https://releases.hashicorp.com/packer/1.6.0/packer_1.6.0_linux_amd64.zip
+        dest: /tmp/packer_1.6.0_linux_amd64.zip
+
+    - name: Extract packer in /tmp dir
+      unarchive:
+        src: /tmp/packer_1.6.0_linux_amd64.zip
+        dest: /tmp
+
+    - name: Copy files from tmp to /usr/local/bin for packer
+      copy:
+        src: /tmp/packer
+        dest: /usr/local/bin/packer
+        remote_src: true
+        mode: '0755'
+      become: true
+
+    - name: Cleanup packer zip
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /tmp/packer_1.6.0_linux_amd64.zip
+        - /tmp/packer
+
+    - name: Start the docker engine
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+      become: true
+
+    - name: Install pip packages
+      pip:
+        name:
+          - ansible-lint
+          - yamllint
+          - sshuttle==0.78.5
+        executable: pip3
+      become: true
+
+    - name: Configure sshuttle
+      template:
+        src: sshuttle.conf.j2
+        dest: /etc/sshuttle.conf
+      become: true
+      notify: restart_sshuttle
+
+    - name: Create Unit file for sshuttle
+      template:
+        src: sshuttle.service.j2
+        dest: /etc/systemd/system/sshuttle.service
+        mode: 644
+      become: true
+      when:
+        - remote_sshuttle_host is defined
+        - remote_sshuttle_host | length > 0
+
+    - name: Start the sshuttle service
+      systemd:
+        name: sshuttle
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      become: true
+      when:
+      - remote_sshuttle_host is defined
+      - remote_sshuttle_host | length > 0
+
+    - name: check SSH Key exists
+      stat:
+        path: /home/vagrant/.ssh/id_rsa
+      register: ssh_result
+
+    - name: generate SSH key (non-existance of SSH key)
+      shell: echo y | ssh-keygen -t rsa -f /home/vagrant/.ssh/id_rsa -N ''
+      when: ssh_result.stat.exists == False
+      changed_when: false
+      ignore_errors: true
+
+    - name: distribute SSH key
+      authorized_key:
+        user: vagrant
+        state: present
+        manage_dir: yes
+        key: "{{ lookup('file', '/home/vagrant/.ssh/id_rsa.pub') }}"
+
+    - name: Turn off SE linux
+      selinux:
+        state: disabled
+      become: true
+
+    - name: Create docker group
+      group:
+        name: docker
+        state: present
+      become: true
+      notify: restart_docker
+
+    - name: add vagrant user to docker group
+      user:
+        append: yes
+        groups: docker
+        name: vagrant
+      become: true
+
+    - name: reset ssh connection
+      meta: reset_connection
+
+    - name: Configure docker
+      template:
+        src: daemon.json.j2
+        dest: /etc/docker/daemon.json
+      become: true
+      notify: restart_docker
+
+    - name: Stop firewalld
+      service:
+        name: firewalld
+        state: stopped
+        enabled: false
+      become: true
+
+  handlers:
+    - name: restart_docker
+      service:
+        name: docker
+        state: restarted
+      become: true
+
+    - name: restart_sshuttle
+      service:
+        name: sshuttle
+        state: restarted
+      become: true
+      when:
+        - remote_sshuttle_host is defined
+        - remote_sshuttle_host | length > 0
+
+    - name: restart_ssh
+      service:
+        name: sshd
+        state: restarted
+      become: true

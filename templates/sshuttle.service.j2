@@ -1,0 +1,11 @@
+[Unit]
+Description=sshuttle
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/sshuttle @/etc/sshuttle.conf -e "sshpass -p {{ ssh_password }}! ssh -o StrictHostKeyChecking=no {{ ssh_user }}@{{ remote_sshuttle_host }} -p {{ remote_sshuttle_port }}"
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target

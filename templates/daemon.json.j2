@@ -1,0 +1,9 @@
+{
+  {# add insecure registries see https://docs.docker.com/engine/reference/commandline/dockerd/ #}
+  "insecure-registries": [
+    {% for host in insecure_registries %}
+    "{{ host }}"{% if not loop.last %},
+    {% endif %}
+    {% endfor %}
+  ]
+}
