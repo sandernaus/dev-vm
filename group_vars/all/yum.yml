@@ -1,0 +1,25 @@
+---
+yum_packages:
+  - python3
+  - python3-pip
+  - git
+  - tree
+  - docker
+  - epel-release
+  - wget
+  - unzip
+  - qemu
+  - kvm
+  - qemu-kvm
+  - seabios
+  - telnet
+  - tigervnc
+  - xauth
+  - maven
+  - rpm-build
+  - htop
+  - gcc-c++
+  - make
+  - python3-devel
+  - openldap-devel
+  - azure-cli

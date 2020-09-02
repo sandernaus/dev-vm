@@ -1,6 +1,6 @@
 ---
 
-- name: generate SSH Key
+- name: Configure Vagrant box
   hosts:
   - all
   tasks:
@@ -13,27 +13,26 @@
       include_vars: /vagrant/.secret.yml
       when: secret.stat.exists is defined and secret.stat.exists
 
+    - name: Import key for Microsoft packages
+      rpm_key:
+        state: present
+        key: https://packages.microsoft.com/keys/microsoft.asc
+      become: true
+
+    - name: Add Azure CLI repository
+      yum_repository:
+        name: azure-cli
+        description: Azure CLI
+        file: azure-cli
+        baseurl: https://packages.microsoft.com/yumrepos/azure-cli
+        gpgcheck: true
+        gpgkey: https://packages.microsoft.com/keys/microsoft.asc
+        enabled: true
+      become: true
+
     - name: Install packages
       yum:
-        name:
-          - python3
-          - python3-pip
-          - git
-          - tree
-          - docker
-          - epel-release
-          - wget
-          - unzip
-          - qemu
-          - kvm
-          - qemu-kvm
-          - seabios
-          - telnet
-          - tigervnc
-          - xauth
-          - maven
-          - rpm-build
-          - htop
+        name: "{{ yum_packages }}"
         state: present
       become: true
 
@@ -42,6 +41,7 @@
         path: /etc/ssh/sshd_config
         regex: ^(# *)?{{ item }}"
         line: "{{ item.setting }} {{ item.value }}"
+        mode: 0600
       notify: restart_ssh
       become: true
       with_items:
@@ -61,13 +61,14 @@
       unarchive:
         src: /tmp/packer_1.6.0_linux_amd64.zip
         dest: /tmp
+        mode: 0666
 
     - name: Copy files from tmp to /usr/local/bin for packer
       copy:
         src: /tmp/packer
         dest: /usr/local/bin/packer
         remote_src: true
-        mode: '0755'
+        mode: 0755
       become: true
 
     - name: Cleanup packer zip
@@ -82,15 +83,12 @@
       systemd:
         name: docker
         state: started
-        enabled: yes
+        enabled: true
       become: true
 
     - name: Install pip packages
       pip:
-        name:
-          - ansible-lint
-          - yamllint
-          - sshuttle==0.78.5
+        name: "{{ pip_packages }}"
         executable: pip3
       become: true
 
@@ -98,14 +96,18 @@
       template:
         src: sshuttle.conf.j2
         dest: /etc/sshuttle.conf
+        mode: 0644
       become: true
       notify: restart_sshuttle
+      when:
+        - sshuttle_subnets is defined
+        - sshuttle_subnets | length > 0
 
     - name: Create Unit file for sshuttle
       template:
         src: sshuttle.service.j2
         dest: /etc/systemd/system/sshuttle.service
-        mode: 644
+        mode: 0644
       become: true
       when:
         - remote_sshuttle_host is defined
@@ -115,12 +117,12 @@
       systemd:
         name: sshuttle
         state: started
-        enabled: yes
-        daemon_reload: yes
+        enabled: true
+        daemon_reload: true
       become: true
       when:
-      - remote_sshuttle_host is defined
-      - remote_sshuttle_host | length > 0
+        - remote_sshuttle_host is defined
+        - remote_sshuttle_host | length > 0
 
     - name: check SSH Key exists
       stat:
@@ -129,7 +131,7 @@
 
     - name: generate SSH key (non-existance of SSH key)
       shell: echo y | ssh-keygen -t rsa -f /home/vagrant/.ssh/id_rsa -N ''
-      when: ssh_result.stat.exists == False
+      when: not ssh_result.stat.exists
       changed_when: false
       ignore_errors: true
 
@@ -137,7 +139,7 @@
       authorized_key:
         user: vagrant
         state: present
-        manage_dir: yes
+        manage_dir: true
         key: "{{ lookup('file', '/home/vagrant/.ssh/id_rsa.pub') }}"
 
     - name: Turn off SE linux
@@ -154,7 +156,7 @@
 
     - name: add vagrant user to docker group
       user:
-        append: yes
+        append: true
         groups: docker
         name: vagrant
       become: true
@@ -166,8 +168,12 @@
       template:
         src: daemon.json.j2
         dest: /etc/docker/daemon.json
+        mode: 0644
       become: true
       notify: restart_docker
+      when:
+        - insecure_registries is defined
+        - insecure_registries | length > 0
 
     - name: Stop firewalld
       service:
