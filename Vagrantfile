@@ -15,7 +15,7 @@ Vagrant.configure("2") do |config|
     end
 
     dev.vm.hostname = "dev-machine"
-    # dev.vm.network :private_network, ip: "192.168.45.2"
+    dev.vm.network :private_network, ip: "192.168.56.2"
     dev.vm.network "forwarded_port", guest: 5901, host: 5901
     dev.vm.network "forwarded_port", guest: 5986, host: 5986
     dev.vm.network "forwarded_port", guest: 80, host: 80
