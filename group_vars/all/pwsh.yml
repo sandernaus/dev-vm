@@ -1,0 +1,4 @@
+---
+pwsh_modules:
+  - Az
+  - AzureRM.Netcore

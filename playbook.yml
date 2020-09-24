@@ -30,6 +30,16 @@
         enabled: true
       become: true
 
+    - name: Add Powershell Core repository
+      yum_repository:
+        name: packages-microsoft-com-prod
+        description: Microsoft Repository
+        baseurl: https://packages.microsoft.com/rhel/7/prod/
+        enabled: true
+        gpgcheck: true
+        gpgkey: https://packages.microsoft.com/keys/microsoft.asc
+      become: true
+
     - name: Install packages
       yum:
         name: "{{ yum_packages }}"
@@ -91,6 +101,10 @@
         name: "{{ pip_packages }}"
         executable: pip3
       become: true
+
+    - name: Install powershell modules
+      command: /usr/bin/pwsh -c Install-Module "{{ item }}" -AllowClobber -Force
+      with_items: "{{ pwsh_modules }}"
 
     - name: Configure sshuttle
       template:
