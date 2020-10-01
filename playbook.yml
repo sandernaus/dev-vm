@@ -40,6 +40,12 @@
         gpgkey: https://packages.microsoft.com/keys/microsoft.asc
       become: true
 
+    - name: Install epel repo
+      yum:
+        name: epel-release
+        state: present
+      become: true
+
     - name: Install packages
       yum:
         name: "{{ yum_packages }}"
@@ -195,6 +201,78 @@
         state: stopped
         enabled: false
       become: true
+
+    - name: Check if ZSH is installed
+      command: /usr/local/bin/zsh --version
+      register: zsh_check
+      ignore_errors: true
+
+    - name: Clone the ZSH repo to build the installer locally
+      git:
+        repo: 'https://github.com/zsh-users/zsh.git'
+        dest: /tmp/zsh
+        version: zsh-5.8
+      when:
+        - zsh_check.failed or zsh_check.stdout.split(' ')[1] != '5.8'
+
+    - name: Build and install ZSH from source
+      shell:
+        cmd: "{{ item }}"
+        chdir: /tmp/zsh
+      become: true
+      ignore_errors: true
+      loop:
+        - ./Util/preconfig
+        - ./configure --with-tcsetpgrp
+        - make -j 20 install
+      when:
+        - zsh_check.failed or zsh_check.stdout.split(' ')[1] != '5.8'
+
+    - name: change user shell to zsh
+      become: yes
+      user:
+        name: vagrant
+        shell: /usr/local/bin/zsh
+
+    - name: Check if oh-my-zsh is installed
+      stat:
+        path: /home/vagrant/.oh-my-zsh
+      register: oh_my_zsh_status
+
+    - name: Download oh my zsh installer
+      get_url:
+        url: https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh
+        dest: /tmp/zsh-installer.sh
+        mode: '0755'
+      when:
+        - not oh_my_zsh_status.stat.exists
+
+    - name: Execute the zsh-installer.sh
+      shell:
+        cmd: ./zsh-installer.sh --unattended
+        chdir: /tmp/
+      when:
+        - not oh_my_zsh_status.stat.exists
+
+    - name: Remove the zsh-installer.sh
+      file:
+        path: /tmp/zsh-installer.sh
+        state: absent
+      when:
+        - not oh_my_zsh_status.stat.exists
+
+    - name: Clone the Powerlevel10k theme repo
+      git:
+        repo: 'https://github.com/romkatv/powerlevel10k.git'
+        dest: "/home/vagrant/.oh-my-zsh/custom/themes/powerlevel10k"
+        depth: 1
+
+    - name: Set the correct theme for ZSH
+      lineinfile:
+        path: ~/.zshrc
+        regexp: '^ZSH_THEME=.*'
+        line: ZSH_THEME=powerlevel10k\/powerlevel10k
+        mode: '0644'
 
   handlers:
     - name: restart_docker

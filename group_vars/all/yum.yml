@@ -5,7 +5,6 @@ yum_packages:
   - git
   - tree
   - docker
-  - epel-release
   - wget
   - unzip
   - qemu
@@ -24,3 +23,7 @@ yum_packages:
   - openldap-devel
   - azure-cli
   - powershell
+  - ncurses-devel
+  - gcc
+  - autoconf
+  - man
