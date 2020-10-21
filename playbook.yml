@@ -202,6 +202,15 @@
         enabled: false
       become: true
 
+    - name: Set default configuration for Ansible
+      ini_file:
+        path: /etc/ansible/ansible.cfg
+        section: "{{ item.0.section }}"
+        option: "{{ item.1.key }}"
+        value: "{{ item.1.value }}"
+      become: true
+      loop: "{{ ansible_cfg|subelements('settings') }}"
+
     - name: Check if ZSH is installed
       command: /usr/local/bin/zsh --version
       register: zsh_check

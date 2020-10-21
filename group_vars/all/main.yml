@@ -1,0 +1,30 @@
+---
+ansible_cfg:
+  - section: defaults
+    settings:
+      - key: inventory
+        value: inventory.ini
+      - key: forks
+        value: 10
+      - key: host_key_checking
+        value: false
+      - key: retry_files_enabled
+        value: false
+      - key: log_path
+        value: $PWD/ansible.log
+      - key: gathering
+        value: implicit
+      - key: timeout
+        value: 30
+      - key: ansible_managed
+        value: "Ansible managed: {file} modified on %Y-%m-%d %H:%M:%S by {uid} on {host}"
+      - key: deprecation_warnings
+        value: true
+      - key: command_warnings
+        value: true
+  - section: ssh_connection
+    settings:
+      - key: ssh_args
+        value: "-o ControlMaster=auto -o ControlPersist=300s"
+      - key: pipelining
+        value: true
