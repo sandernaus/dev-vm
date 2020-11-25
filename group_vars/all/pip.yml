@@ -61,3 +61,5 @@ pip_packages:
   # - selinux
   - docker
   - docker-compose
+  # aws
+  - git-remote-codecommit

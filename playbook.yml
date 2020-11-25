@@ -46,6 +46,12 @@
         state: present
       become: true
 
+    - name: Install NodeJS repo
+      shell: |
+        set -o pipefail
+        curl -sL https://rpm.nodesource.com/setup_current.x | bash -
+      become: true
+
     - name: Install packages
       yum:
         name: "{{ yum_packages }}"
@@ -67,6 +73,29 @@
           value: "no"
         - setting: PasswordAuthentication
           value: "yes"
+
+    - name: Download AWS CLI
+      unarchive:
+        src: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: /tmp
+        remote_src: true
+
+    - name: Check if AWS CLI is installed
+      command: aws --version
+      register: aws_cli_check
+      ignore_errors: true
+
+    - name: Install AWS CLI
+      command: /tmp/aws/install
+      become: true
+      when:
+        - aws_cli_check.failed
+
+    - name: Install AWS CLI
+      command: /tmp/aws/install --update
+      become: true
+      when:
+        - not aws_cli_check.failed
 
     - name: Download packer zip
       get_url:
@@ -106,6 +135,13 @@
       pip:
         name: "{{ pip_packages }}"
         executable: pip3
+      become: true
+
+    - name: Install npm packages
+      npm:
+        name: "{{ item }}"
+        global: yes
+      loop: "{{ npm_packages }}"
       become: true
 
     - name: Install powershell modules

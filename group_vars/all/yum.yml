@@ -27,3 +27,4 @@ yum_packages:
   - gcc
   - autoconf
   - man
+  - nodejs

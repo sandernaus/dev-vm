@@ -23,6 +23,7 @@ Vagrant.configure("2") do |config|
 
     dev.vm.provision 'shell', inline: "echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys", privileged: true
 
+    dev.vbguest.installer_options = { allow_kernel_upgrade: true }
     dev.vbguest.iso_path = "C:/Program Files/Oracle/VirtualBox/VBoxGuestAdditions.iso"
 
     dev.vm.synced_folder "./", "/vagrant",
