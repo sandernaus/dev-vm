@@ -247,6 +247,19 @@
       become: true
       loop: "{{ ansible_cfg|subelements('settings') }}"
 
+    - name: Configure git settings
+      git_config:
+        name: "{{ item.name }}"
+        scope: global
+        value: "{{ item.value }}"
+      loop:
+        - name: push.default
+          value: simple
+        - name: user.name
+          value: "{{ git_user }}"
+        - name: user.email
+          value: "{{ git_mail }}"
+
     - name: Check if ZSH is installed
       command: /usr/local/bin/zsh --version
       register: zsh_check

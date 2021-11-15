@@ -11,15 +11,15 @@ Vagrant.configure("2") do |config|
       vb.name = "dev-machine"
       vb.memory = "4096"
       vb.cpus = "2"
-      vb.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
+      # vb.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
     end
 
     dev.vm.hostname = "dev-machine"
     dev.vm.network :private_network, ip: "192.168.56.2"
-    dev.vm.network "forwarded_port", guest: 5901, host: 5901
-    dev.vm.network "forwarded_port", guest: 5986, host: 5986
-    dev.vm.network "forwarded_port", guest: 80, host: 80
-    dev.vm.network "forwarded_port", guest: 443, host: 443
+    # dev.vm.network "forwarded_port", guest: 5901, host: 5901
+    # dev.vm.network "forwarded_port", guest: 5986, host: 5986
+    # dev.vm.network "forwarded_port", guest: 80, host: 80
+    # dev.vm.network "forwarded_port", guest: 443, host: 443
 
     dev.vm.provision 'shell', inline: "echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys", privileged: true
 
@@ -41,10 +41,12 @@ Vagrant.configure("2") do |config|
         automount: true,
         mount_options: ["dmode=755,fmode=777"]
 
+    dev.vm.provision "shell", inline: "yum install -y python3 python3-pip"
+
     dev.vm.provision "ansible_local" do |ansible|
       ansible.playbook = "playbook.yml"
-      ansible.install_mode = "pip"
-      ansible.version = "2.9.6"
+      ansible.install_mode = "pip3"
+      ansible.version = "2.9.21"
     end
   end
 

@@ -28,3 +28,4 @@ yum_packages:
   - autoconf
   - man
   - nodejs
+  - jq
